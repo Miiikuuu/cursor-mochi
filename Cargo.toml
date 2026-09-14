@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+[workspace.dependencies]
+cursormochi-core = { path = "crates/cursormochi-core" }
+cursormochi-app = { path = "crates/cursormochi-app" }
+cursormochi-platform = { path = "crates/cursormochi-platform" }
+gtk = { package = "gtk4", version = "0.9.7" }
+gio = "0.20.12"
+glib = "0.20.12"
+[profile.dev]
+debug = 0
