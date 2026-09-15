@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 mod cache;
+mod classification;
 mod settings;
 use cursormochi_app::{Catalog, ThemeRepository};
 use cursormochi_core::*;
@@ -166,6 +167,11 @@ impl Repository {
             allowed,
             cache: std::sync::Arc::new(std::sync::Mutex::new(cache::Cache::new(128 * 1024 * 1024))),
         }
+    }
+    pub fn refreshed(&self) -> Self {
+        let mut repo = Self::new(self.paths.clone());
+        repo.cache = self.cache.clone();
+        repo
     }
     fn permitted(&self, p: &Path) -> bool {
         self.allowed.iter().any(|r| p.starts_with(r))
@@ -397,10 +403,12 @@ impl ThemeRepository for Repository {
                 if !safe.is_dir() {
                     continue;
                 }
+                let mut candidate_error = None;
                 let (display, inherits) = match self.index(&dir) {
                     Ok(v) => v,
                     Err(e) => {
                         if dir.join("index.theme").symlink_metadata().is_ok() {
+                            candidate_error = Some(e.to_string());
                             diagnostics.push(format!("{}: {e}", dir.display()))
                         }
                         (None, vec![])
@@ -434,7 +442,21 @@ impl ThemeRepository for Repository {
                         }
                     }
                 }
-                if roles.is_empty() && inherits.is_empty() {
+                if roles.is_empty() && dir.join("cursors").symlink_metadata().is_ok() {
+                    match self.resolve_link(&dir.join("cursors")) {
+                        Err(e) => candidate_error = Some(e.to_string()),
+                        Ok((path, _)) => {
+                            if let Err(e) = fs::read_dir(path) {
+                                candidate_error = Some(e.to_string());
+                            }
+                        }
+                    }
+                }
+                if roles.is_empty()
+                    && inherits.is_empty()
+                    && !dir.join("index.theme").is_file()
+                    && candidate_error.is_none()
+                {
                     continue;
                 }
                 let record = records
@@ -444,7 +466,13 @@ impl ThemeRepository for Repository {
                         display: display.unwrap_or_else(|| name.as_str().into()),
                         locations: vec![],
                         roles: vec![],
+                        verified_roles: vec![],
+                        availability: Availability::Unverified("Not probed yet".into()),
+                        issues: vec![],
                     });
+                if let Some(e) = candidate_error {
+                    record.availability = Availability::Invalid(e);
+                }
                 record.locations.push(Location {
                     directory: dir,
                     priority,
@@ -464,10 +492,7 @@ impl ThemeRepository for Repository {
                 .cmp(&b.display.to_lowercase())
                 .then(a.name.as_str().cmp(b.name.as_str()))
         });
-        Ok(Catalog {
-            themes,
-            diagnostics,
-        })
+        self.classify(themes, diagnostics, cancel)
     }
     fn preview(
         &self,

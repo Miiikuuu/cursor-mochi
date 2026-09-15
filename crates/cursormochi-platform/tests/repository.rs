@@ -176,3 +176,112 @@ fn xdg_and_override() {
     assert_eq!(p.diagnostics.len(), 2);
     assert!(!redact("/home/test/name /opt/cursors/theme", &e).contains("/home/test"));
 }
+
+#[test]
+fn icon_only_candidate_is_not_a_verified_cursor_theme() {
+    let t = Temp::new();
+    t.put("Icons/index.theme", b"[Icon Theme]\nInherits=hicolor\n");
+    t.put("default/cursors/left_ptr", &fixture());
+    let r = t.repo();
+    assert_eq!(
+        r.preview(&theme("Icons"), "left_ptr", &|| false)
+            .unwrap()
+            .resolution,
+        Resolution::Fallback
+    );
+    assert!(
+        !r.scan(&|| false)
+            .unwrap()
+            .themes
+            .iter()
+            .any(|t| t.name.as_str() == "Icons")
+    );
+}
+
+#[test]
+fn classification_keeps_explicit_inheritance_partial_and_default() {
+    let t = Temp::new();
+    t.put("Parent/cursors/watch", &fixture());
+    t.put("Child/index.theme", b"[Icon Theme]\nInherits=Parent\n");
+    t.put("default/index.theme", b"[Icon Theme]\nInherits=Parent\n");
+    t.put("Icons/index.theme", b"[Icon Theme]\nInherits=hicolor\n");
+    t.put("hicolor/index.theme", b"[Icon Theme]\nName=Hicolor\n");
+    let r = t.repo();
+    let c = r.scan(&|| false).unwrap();
+    assert_eq!(c.themes.len(), 3);
+    let child = c
+        .themes
+        .iter()
+        .find(|t| t.name.as_str() == "Child")
+        .unwrap();
+    assert!(matches!(child.availability, Availability::Inherited { .. }));
+    assert_eq!(child.verified_roles, ["watch"]);
+    assert!(matches!(
+        c.candidates
+            .iter()
+            .find(|t| t.name.as_str() == "Icons")
+            .unwrap()
+            .availability,
+        Availability::NoCursorSource
+    ));
+    assert_eq!(
+        r.preview(&theme("Icons"), "watch", &|| false)
+            .unwrap()
+            .resolution,
+        Resolution::Fallback
+    );
+    assert!(matches!(
+        r.preview(&theme("Child"), "left_ptr", &|| false),
+        Err(Error::Missing)
+    ));
+}
+#[test]
+fn classification_reports_broken_candidates_but_keeps_partial_valid_theme() {
+    let t = Temp::new();
+    t.put("Broken/cursors/left_ptr", b"bad");
+    t.put("Missing/index.theme", b"[Icon Theme]\nInherits=absent\n");
+    t.put("Loop/index.theme", b"[Icon Theme]\nInherits=Loop\n");
+    t.put("Partial/cursors/watch", &fixture());
+    t.put("Partial/cursors/left_ptr", b"bad");
+    let c = t.repo().scan(&|| false).unwrap();
+    assert_eq!(c.themes.len(), 1);
+    assert_eq!(c.themes[0].name.as_str(), "Partial");
+    assert_eq!(c.candidates.len(), 3);
+    assert!(
+        c.candidates
+            .iter()
+            .all(|t| matches!(t.availability, Availability::Invalid(_)))
+    );
+    assert!(c.diagnostics.iter().any(|d| d.contains("cycle")));
+    assert!(c.diagnostics.iter().any(|d| d.contains("Missing parent")));
+}
+#[test]
+fn classification_probe_limit_does_not_claim_verification() {
+    let t = Temp::new();
+    for i in 0..70 {
+        t.put(&format!("Limited/cursors/{i:03}"), b"bad")
+    }
+    t.put("Limited/cursors/zzz-valid", &fixture());
+    let c = t.repo().scan(&|| false).unwrap();
+    assert!(c.themes.is_empty());
+    assert!(matches!(
+        c.candidates[0].availability,
+        Availability::Unverified(_)
+    ));
+}
+
+#[test]
+fn malformed_metadata_and_broken_cursor_directory_are_diagnostic_candidates() {
+    let t = Temp::new();
+    t.put("BadMetadata/index.theme", &[255, 254]);
+    fs::create_dir_all(t.0.join("BadDirectory")).unwrap();
+    symlink("absent", t.0.join("BadDirectory/cursors")).unwrap();
+    let c = t.repo().scan(&|| false).unwrap();
+    assert!(c.themes.is_empty());
+    assert_eq!(c.candidates.len(), 2);
+    assert!(
+        c.candidates
+            .iter()
+            .all(|t| matches!(t.availability, Availability::Invalid(_)))
+    );
+}

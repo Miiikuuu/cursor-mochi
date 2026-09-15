@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+pub mod browser;
 use cursormochi_core::{Error, Preview, Theme, ThemeName};
 use std::collections::BTreeMap;
 pub trait ThemeRepository {
@@ -13,6 +14,7 @@ pub trait ThemeRepository {
 #[derive(Clone, Debug, Default)]
 pub struct Catalog {
     pub themes: Vec<Theme>,
+    pub candidates: Vec<Theme>,
     pub diagnostics: Vec<String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

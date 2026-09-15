@@ -40,6 +40,45 @@ pub struct Theme {
     pub display: String,
     pub locations: Vec<Location>,
     pub roles: Vec<String>,
+    pub verified_roles: Vec<String>,
+    pub availability: Availability,
+    pub issues: Vec<String>,
+}
+/// Evidence about this theme without the automatic default-theme fallback.
+#[derive(Clone, Debug)]
+pub enum Availability {
+    Direct {
+        role: String,
+        source: PathBuf,
+    },
+    Inherited {
+        role: String,
+        source: PathBuf,
+        chain: Vec<String>,
+    },
+    NoCursorSource,
+    Invalid(String),
+    Unverified(String),
+}
+impl Availability {
+    pub fn usable(&self) -> bool {
+        matches!(self, Self::Direct { .. } | Self::Inherited { .. })
+    }
+    pub fn role(&self) -> Option<&str> {
+        match self {
+            Self::Direct { role, .. } | Self::Inherited { role, .. } => Some(role),
+            _ => None,
+        }
+    }
+    pub fn label(&self) -> &str {
+        match self {
+            Self::Direct { .. } => "Installed",
+            Self::Inherited { .. } => "Inherited",
+            Self::NoCursorSource => "No cursor source",
+            Self::Invalid(_) => "Invalid",
+            Self::Unverified(_) => "Unverified",
+        }
+    }
 }
 #[derive(Clone, Debug)]
 pub struct Frame {

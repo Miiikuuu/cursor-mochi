@@ -1,5 +1,5 @@
 use cursormochi_app::{Catalog, ThemeRepository};
-use cursormochi_core::{Error, Preview, ThemeName};
+use cursormochi_core::{Error, Frame, Preview, Resolution, ThemeName};
 use cursormochi_platform::Repository;
 use std::sync::{
     Arc, Condvar, Mutex,
@@ -10,10 +10,12 @@ use std::sync::{
 pub enum Job {
     Scan,
     Preview(ThemeName, String),
+    Thumbnail(ThemeName, String),
 }
 pub enum Output {
     Scan(Result<Catalog, Error>),
     Preview(Result<Preview, Error>),
+    Thumbnail(Result<(Frame, Resolution), Error>),
 }
 type Slot = Arc<(Mutex<Option<(u64, Job)>>, Condvar)>;
 #[derive(Clone)]
@@ -54,10 +56,26 @@ fn run(mut repo: Repository, slot: Slot, g: Arc<AtomicU64>, tx: SyncSender<(u64,
         let cancel = || g.load(Ordering::Relaxed) != id;
         let output = match job {
             Job::Scan => {
-                repo = Repository::new(repo.paths.clone());
+                repo = repo.refreshed();
                 Output::Scan(repo.scan(&cancel))
             }
             Job::Preview(t, r) => Output::Preview(repo.preview(&t, &r, &cancel)),
+            Job::Thumbnail(t, r) => {
+                Output::Thumbnail(repo.refreshed().preview(&t, &r, &cancel).and_then(|p| {
+                    if p.resolution == Resolution::Fallback {
+                        return Err(Error::Invalid("Source changed; refresh to verify"));
+                    }
+                    let v = p
+                        .variants
+                        .iter()
+                        .min_by_key(|v| v.nominal.abs_diff(24))
+                        .ok_or(Error::Missing)?;
+                    Ok((
+                        v.frames.first().ok_or(Error::Missing)?.clone(),
+                        p.resolution,
+                    ))
+                }))
+            }
         };
         if !cancel() && tx.send((id, output)).is_err() {
             return;
