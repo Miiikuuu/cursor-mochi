@@ -4,7 +4,7 @@ use gtk::{gdk, prelude::*};
 #[derive(Clone)]
 pub struct Row {
     pub row: gtk::ListBoxRow,
-    pub image: gtk::Picture,
+    pub image: gtk::Image,
     pub badge: gtk::Label,
     pub base: String,
     pub id: String,
@@ -14,22 +14,29 @@ pub struct Row {
 pub struct ThemeList {
     pub root: gtk::Box,
     pub search: gtk::SearchEntry,
+    pub refresh: gtk::Button,
     pub list: gtk::ListBox,
     pub scroll: gtk::ScrolledWindow,
     pub empty: gtk::Label,
-    pub count: gtk::Label,
     pub rows: Vec<Row>,
 }
 impl ThemeList {
     pub fn new() -> Self {
         let root = gtk::Box::new(gtk::Orientation::Vertical, 12);
         root.add_css_class("browser-pane");
+        let heading = super::label("Themes");
+        heading.add_css_class("section-label");
+        let heading_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        heading.set_hexpand(true);
+        let refresh = gtk::Button::from_icon_name("view-refresh-symbolic");
+        refresh.add_css_class("flat");
+        refresh.set_tooltip_text(Some("Refresh themes"));
+        heading_row.append(&heading);
+        heading_row.append(&refresh);
+        root.append(&heading_row);
         let search = gtk::SearchEntry::new();
         search.set_placeholder_text(Some("Search themes"));
         root.append(&search);
-        let count = super::label("Finding cursor themes…");
-        count.add_css_class("dim-label");
-        root.append(&count);
         let list = gtk::ListBox::new();
         list.add_css_class("theme-list");
         list.set_selection_mode(gtk::SelectionMode::Single);
@@ -45,10 +52,10 @@ impl ThemeList {
         Self {
             root,
             search,
+            refresh,
             list,
             scroll,
             empty,
-            count,
             rows: vec![],
         }
     }
@@ -62,8 +69,8 @@ impl ThemeList {
             let box_ = gtk::Box::new(gtk::Orientation::Horizontal, 12);
             box_.set_can_target(false);
             box_.add_css_class("theme-row");
-            let image = gtk::Picture::new();
-            image.set_size_request(40, 40);
+            let image = gtk::Image::new();
+            image.set_pixel_size(44);
             image.add_css_class("thumbnail-tile");
             image.set_halign(gtk::Align::Center);
             image.set_valign(gtk::Align::Center);
@@ -73,7 +80,7 @@ impl ThemeList {
             let name = super::label(&t.display);
             name.set_wrap(false);
             name.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            name.set_max_width_chars(22);
+            name.set_max_width_chars(16);
             name.add_css_class("theme-name");
             text.append(&name);
             let base = if themes.iter().filter(|v| v.display == t.display).count() > 1
@@ -129,8 +136,6 @@ impl ThemeList {
                 visible += 1
             }
         }
-        self.count
-            .set_text(&format!("{visible} of {} cursor themes", themes.len()));
         self.empty.set_text(if themes.is_empty() {
             "No verified cursor themes found.\nSee candidate diagnostics in the menu."
         } else if visible == 0 {

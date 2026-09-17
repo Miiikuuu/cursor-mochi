@@ -28,3 +28,8 @@ for name in ['Mochi-Light','Mochi-Motion']:
     p=root/name/'cursors/default'
     if not p.is_symlink():p.symlink_to('left_ptr')
 (root/'LICENSE').write_text('All fixture images and generator are original CursorMochi project material, licensed under MIT.\n')
+
+# Distinct, original trial-region assets. Do not change reference left_ptr files.
+for role, color in [('text',0xfff08080),('pointer',0xff80dd80),('move',0xffffbb55),
+                    ('ew-resize',0xffbb88ff),('ns-resize',0xff88dddd),('progress',0xffdddd66)]:
+    (root/'Mochi-Light/cursors'/role).write_bytes(cursor([(24,18,24,1,2,100,color)]))

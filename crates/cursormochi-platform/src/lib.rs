@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 mod cache;
 mod classification;
+pub mod import;
 mod settings;
 use cursormochi_app::{Catalog, ThemeRepository};
 use cursormochi_core::*;

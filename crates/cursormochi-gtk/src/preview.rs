@@ -21,6 +21,7 @@ pub struct PreviewPane {
     pub title: gtk::Label,
     pub subtitle: gtk::Label,
     pub roles: gtk::ComboBoxText,
+    pub role_browser: super::role_list::RoleList,
     pub sizes: gtk::ComboBoxText,
     pub zoom: gtk::SpinButton,
     pub hotspot: gtk::CheckButton,
@@ -30,6 +31,7 @@ pub struct PreviewPane {
     pub warning: gtk::Label,
     pub canvas: gtk::Overlay,
     pub picture: gtk::Picture,
+    pub image_scroll: gtk::ScrolledWindow,
     meta: gtk::Label,
     source: gtk::Label,
     caption: gtk::Label,
@@ -74,6 +76,7 @@ impl PreviewPane {
         {
             let choice = background.clone();
             bg.set_draw_func(move |_, cr, w, h| match choice.active().unwrap_or(0) {
+                3 => (), // Transparent canvas: use the surrounding window background.
                 1 => {
                     cr.set_source_rgb(0.15, 0.16, 0.18);
                     let _ = cr.paint();
@@ -179,8 +182,10 @@ impl PreviewPane {
             hotspot.connect_toggled(move |_| mark.queue_draw());
         }
         play.connect_toggled(|b| b.set_label(if b.is_active() { "Pause" } else { "Play" }));
+        let role_browser = super::role_list::RoleList::new(&roles);
         Self {
             root,
+            role_browser,
             title,
             subtitle,
             roles,
@@ -193,11 +198,120 @@ impl PreviewPane {
             warning,
             canvas,
             picture,
+            image_scroll: scroller,
             meta,
             source,
             caption,
             mark,
             state,
+        }
+    }
+    /// The importer and inspector share the same spacious preview layout.
+    pub fn configure_import(&self) {
+        self.configure_spacious();
+    }
+    pub fn configure_inspect(&self) {
+        self.configure_spacious();
+        if let Some(controls) = self
+            .roles
+            .parent()
+            .and_then(|w| w.downcast::<gtk::Box>().ok())
+        {
+            controls.remove(&self.roles);
+        }
+        if let Some(toolbar) = self
+            .title
+            .parent()
+            .and_then(|w| w.downcast::<gtk::Box>().ok())
+        {
+            toolbar.insert_child_after(&self.roles, Some(&self.title));
+        }
+        self.roles.set_visible(false);
+        let active = super::label("");
+        active.add_css_class("dim-label");
+        active.set_wrap(false);
+        active.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        active.set_max_width_chars(24);
+        if let Some(toolbar) = self
+            .title
+            .parent()
+            .and_then(|w| w.downcast::<gtk::Box>().ok())
+        {
+            toolbar.insert_child_after(&active, Some(&self.title));
+        }
+        let weak = active.downgrade();
+        self.roles.connect_changed(move |c| {
+            if let Some(active) = weak.upgrade() {
+                active.set_text(c.active_text().as_deref().unwrap_or(""));
+                active.set_tooltip_text(c.active_id().as_deref());
+            }
+        });
+        self.root.remove(&self.subtitle);
+        self.append_details(&self.subtitle);
+        if let Some(details) = self.technical.child() {
+            self.technical.set_child(None::<&gtk::Widget>);
+            self.technical.set_child(Some(
+                &gtk::ScrolledWindow::builder()
+                    .child(&details)
+                    .max_content_height(220)
+                    .propagate_natural_height(true)
+                    .hscrollbar_policy(gtk::PolicyType::Never)
+                    .build(),
+            ));
+        }
+    }
+    pub fn append_details(&self, widget: &impl IsA<gtk::Widget>) {
+        let details = self.technical.child().and_then(|w| {
+            w.downcast_ref::<gtk::ScrolledWindow>()
+                .and_then(|s| s.child())
+                .and_then(|w| w.downcast::<gtk::Viewport>().ok())
+                .and_then(|v| v.child())
+                .or(Some(w))
+        });
+        if let Some(details) = details.and_then(|w| w.downcast::<gtk::Box>().ok()) {
+            details.append(widget);
+        }
+    }
+    fn configure_spacious(&self) {
+        self.background.append_text("No background");
+        self.background.set_active(Some(3));
+        self.zoom.set_value(1.);
+        self.root.set_vexpand(true);
+        self.image_scroll.set_max_content_height(-1);
+        self.image_scroll.set_min_content_height(240);
+        self.image_scroll.set_vexpand(true);
+        let toolbar = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        self.root.remove(&self.title);
+        self.title.set_hexpand(true);
+        self.title.remove_css_class("title-1");
+        self.title.add_css_class("theme-name");
+        toolbar.append(&self.title);
+        if let Some(inspect) = self
+            .play
+            .parent()
+            .and_then(|p| p.downcast::<gtk::Box>().ok())
+        {
+            inspect.remove(&self.play);
+        }
+        toolbar.append(&self.play);
+        self.root.prepend(&toolbar);
+        self.technical.set_label(Some("Preview settings & details"));
+        if let Some(details) = self
+            .technical
+            .child()
+            .and_then(|c| c.downcast::<gtk::Box>().ok())
+        {
+            for widget in [
+                self.background.parent(),
+                self.sizes.parent(),
+                Some(self.caption.clone().upcast()),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                self.root.remove(&widget);
+                details.prepend(&widget);
+            }
         }
     }
     pub fn clear(&self) {
@@ -240,7 +354,7 @@ impl PreviewPane {
                 "This role comes from the default theme, not the selected theme."
             }
             Resolution::Inherited => {
-                "This role is inherited. See Technical details for its actual source."
+                "This role is inherited. See Preview settings & details for its actual source."
             }
             Resolution::Direct => "",
         };

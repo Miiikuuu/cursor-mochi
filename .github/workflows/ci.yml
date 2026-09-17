@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.0
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Test core and app without native dependencies
+        run: cargo test --locked -p cursormochi-core -p cursormochi-app
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config libgtk-4-dev libglib2.0-bin python3 libxcursor1
+      - name: Record build environment and compile private test schemas
+        run: |
+          rustc --version
+          cargo --version
+          pkg-config --modversion gtk4 gio-2.0
+          glib-compile-schemas tests/schemas
+      - name: Lint workspace
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test workspace with fake or memory settings
+        run: cargo test --workspace --locked
+      - name: Build release binary
+        run: cargo build --release -p cursormochi-gtk --locked
+
+      - name: Independently validate imported Xcursor output
+        run: python3 scripts/reference-import.py

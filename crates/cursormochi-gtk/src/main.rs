@@ -1,7 +1,13 @@
 #![forbid(unsafe_code)]
+mod import;
+mod import_smoke;
 mod preview;
+mod role_list;
 mod smoke;
 mod theme_list;
+mod thumbnail;
+mod trial;
+mod trial_smoke;
 mod ui;
 mod worker;
 use cursormochi_app::*;

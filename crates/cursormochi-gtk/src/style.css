@@ -1,13 +1,132 @@
-.browser-pane { padding: 16px; }
-.detail-pane { padding: 18px; }
-.current-setting { padding: 12px 18px; }
+/* Native GTK translation of the supplied CursorMochi playground reference. */
+window { font-size: 14px; background: @theme_bg_color; }
+headerbar { min-height: 44px; box-shadow: none; border-bottom: 1px solid alpha(@theme_fg_color, .12); }
+headerbar button { min-height: 24px; }
+.browser-pane { padding: 24px 12px 12px; background: @theme_bg_color; }
+.section-label { color: alpha(@theme_fg_color,.65); font-size: 12px; }
+.current-setting { padding: 12px 8px; font-size: 12px; color: alpha(@theme_fg_color,.65); }
+.browser-pane searchentry { min-height: 30px; border-radius: 5px; box-shadow: none; }
 .theme-list { background: transparent; }
-.theme-list row { border-radius: 9px; margin-bottom: 4px; }
-.theme-row { padding: 11px 9px; }
-.theme-name { font-weight: 600; }
-.preview-canvas { border-radius: 12px; }
-.action-area { padding: 16px 22px; }
+.theme-list row { border-radius: 5px; margin: 3px 0; }
+.theme-list row:selected { background: alpha(@theme_fg_color,.15); color: @theme_fg_color; outline: 1px solid alpha(@theme_fg_color,.08); }
+.theme-list row:selected:focus { outline: 2px solid @theme_selected_bg_color; }
+.theme-row { padding: 10px 7px; }
+.theme-name { font-weight: 500; font-size: 14px; }
+.theme-row .dim-label { font-size: 12px; }
+.thumbnail-tile { background: transparent; padding: 3px; }
+.detail-pane { padding: 24px; }
+.preview-canvas { border-radius: 9px; }
+.action-area { padding: 10px 20px; }
+.action-area > .dim-label, .operation-status { font-size: 12px; }
+.primary-action { background: @theme_fg_color; color: @theme_bg_color; border: none; box-shadow: none; padding: 8px 20px; }
+.primary-action:disabled { background: alpha(@theme_fg_color,.055); color: alpha(@theme_fg_color,.4); }
 .menu-content { padding: 16px; }
 .warning-text { font-weight: 600; }
+.detached-message { padding: 32px; }
+.playground-page { padding: 20px; }
+.playground-heading { padding: 0; }
+.theme-title { font-size: 23px; font-weight: 600; }
+.playground-heading .dim-label { font-size: 12px; }
+.playground { border: 1px solid alpha(@theme_fg_color,.10); border-radius: 8px; }
+.playground-light, .playground-grid { background: #fff; color: #29323e; }
+.playground-dark { background: #25282d; color: #edf0f4; }
+.playground-grid { background-image: repeating-linear-gradient(45deg, #f7f8fa 0px, #f7f8fa 8px, #fff 8px, #fff 16px); }
+.playground-chrome { padding: 8px 12px; border-bottom: 1px solid alpha(#8998ac,.18); font-size: 14px; }
+.playground-content { padding: 16px; }
+.playground button { color: inherit; box-shadow: none; font-size: 14px; }
+.playground button:not(.flat) { background: alpha(#8998ac,.10); border: 1px solid alpha(#8998ac,.22); border-radius: 4px; }
+.playground .section-label { color: #7c8797; }
+.playground separator { background: alpha(#8998ac,.25); }
+.playground checkbutton, .playground scale { font-size: 14px; }
+.playground .note-title { font-size: 21px; border: none; border-bottom: 1px solid alpha(#8998ac,.25); border-radius: 0; background: transparent; color: inherit; box-shadow: none; padding: 5px 0 10px; }
+.note-editor, .note-editor text { background: transparent; color: inherit; font-size: 14px; }
+.note-editor.note-bold text { font-weight: bold; }
+.note-editor.note-italic text { font-style: italic; }
+.demo-link { padding-left: 0; text-decoration: underline; }
+.demo-canvas { border: 1px solid alpha(#8998ac,.3); background: alpha(#8998ac,.12); border-radius: 5px; }
+.demo-card { background: #fff; color: #34404f; border: 1px solid #dce1e8; border-radius: 4px; box-shadow: 0 7px 14px alpha(black,.09); }
+.playground-dark .demo-card { background: #303640; color: #e6ebf3; border-color: #48515e; }
+.card-handle { padding: 9px 10px; background: alpha(#8998ac,.12); border-bottom: 1px solid alpha(#8998ac,.18); font-size: 12px; font-weight: 600; }
+.card-handle:focus { outline: 2px solid @theme_selected_bg_color; }
+.cover-art { margin: 8px 0 0 8px; background: alpha(#8998ac,.18); border-radius: 3px; }
+.idea-text { padding: 9px 12px; font-size: 12px; }
+.source-summary { color: alpha(@theme_fg_color,.65); font-size: 12px; }
+.background-swatch { min-width: 14px; min-height: 14px; padding: 0; border: 1px solid #aeb7c4; border-radius: 50%; box-shadow: none; margin: 3px; }
+.background-swatch:checked { outline: 1px solid @theme_fg_color; outline-offset: 3px; }
+.swatch-light { background: #f5f6f8; }
+.swatch-dark { background: #303946; }
+.swatch-grid, .playground-grid { background-color: #fff; background-image: linear-gradient(45deg, #dde2e9 25%, transparent 25%, transparent 75%, #dde2e9 75%), linear-gradient(45deg, #dde2e9 25%, transparent 25%, transparent 75%, #dde2e9 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; }
+.playground scale highlight { background: #515761; border-color: #515761; box-shadow: none; }
+.playground button { min-height: 20px; min-width: 0; padding: 4px 8px; }
+.playground .background-swatch { padding: 0; }
+/* Preview palette is chosen independently of the surrounding desktop theme. */
+.playground-light label, .playground-grid label,
+.playground-light text, .playground-grid text,
+.playground-light entry, .playground-grid entry { color: #29323e; }
+.playground-dark label, .playground-dark text, .playground-dark entry { color: #edf0f4; }
+.playground .section-label { font-size: 14px; font-weight: 600; }
+.playground-light .section-label, .playground-grid .section-label { color: #4b515a; }
+.playground-dark .section-label { color: #d6d8dd; }
 
-.thumbnail-tile { background: #858b95; border-radius: 6px; padding: 4px; }
+.import-preview { padding: 12px; }
+
+.editor-toolbar { min-height: 36px; border-bottom: 1px solid alpha(#8998ac,.16); padding-bottom: 6px; }
+.notes-panel { margin-right: 12px; }
+.canvas-panel { margin-left: 12px; }
+.editor-layout > separator { background: transparent; min-width: 1px; min-height: 12px; }
+.demo-states button { min-height: 30px; }
+.playground button:hover { background: alpha(#8998ac,.22); }
+.playground button:checked { background: alpha(#8998ac,.3); }
+.operation-status { font-size: 12px; }
+
+.playground .background-swatch { min-width: 16px; min-height: 16px; padding: 0; }
+
+/* Keep controls readable when preview and desktop palettes differ. */
+.playground-light spinbutton, .playground-grid spinbutton,
+.playground-light spinbutton text, .playground-grid spinbutton text { background: #fff; color: #29323e; }
+.playground-dark spinbutton, .playground-dark spinbutton text { background: #303640; color: #edf0f4; }
+.playground-light spinbutton button, .playground-grid spinbutton button { background: #f4f5f6; color: #29323e; }
+.playground-dark spinbutton button { background: #303640; color: #edf0f4; }
+.playground-light check, .playground-grid check { background: #fff; border-color: #9ba0a8; color: #29323e; }
+.playground-dark check { background: #303640; border-color: #8993a0; color: #edf0f4; }
+.playground-light scale trough, .playground-grid scale trough { background: #dedfe2; }
+.playground-dark scale trough { background: #555b64; }
+.playground-light scale slider, .playground-grid scale slider { background: #fff; border-color: #9ba0a8; }
+.playground-dark scale slider { background: #c9cdd4; border-color: #c9cdd4; }
+.playground .background-swatch.swatch-light { background: #f5f6f8; }
+.playground .background-swatch.swatch-dark { background: #303946; }
+.playground .background-swatch.swatch-grid { background-color: #fff; }
+
+.import-wizard { padding: 12px 16px; }
+.import-source-name { font-size: 14px; font-weight: 600; }
+.import-next-step { padding: 10px 12px; background: alpha(@theme_fg_color,.06); border-radius: 6px; font-size: 14px; }
+.import-operation { padding: 10px 12px; border: 1px solid alpha(@theme_fg_color,.35); border-radius: 6px; font-weight: 600; }
+.import-file-list { background: transparent; }
+.import-file-list row { border-radius: 6px; margin: 3px 8px 3px 0; }
+.import-file-list row:selected { background: alpha(@theme_fg_color,.14); color: @theme_fg_color; }
+.import-file-row { padding: 6px 8px; }
+.import-file-row .dim-label { font-size: 12px; }
+.import-install-page { padding: 12px 4px; }
+
+/* A lighter main title bar, including when the desktop prefers a dark theme. */
+headerbar.main-header { background: #fff; color: #2d3239; border-bottom-color: #e3e5e8; }
+.main-header button { background: #fafafa; color: #2d3239; border-color: #e3e5e8; box-shadow: none; }
+.main-header button:hover { background: #eff0f2; }
+.main-header button:checked { background: #e4e7eb; color: #20252c; }
+.main-header popover contents { background: @theme_bg_color; color: @theme_fg_color; }
+.main-header popover button { background: @theme_bg_color; color: @theme_fg_color; }
+
+/* Persistent Inspect role thumbnails, independent of the theme browser. */
+.role-browser { padding: 24px 8px 12px; border-right: 1px solid alpha(@theme_fg_color,.1); }
+.role-row { padding: 6px 4px; }
+.role-row .dim-label { font-size: 12px; }
+
+/* Current desktop cursor checks reuse the existing playground. */
+.current-test { padding: 14px 20px; }
+.current-test .playground-page { padding: 4px 0; }
+.current-test .theme-title { font-size: 20px; }
+.cursor-test-role { padding: 12px; border: 1px solid alpha(@theme_fg_color,.12); border-radius: 10px; }
+.cursor-test-role .dim-label { font-size: 12px; }
+.native-checks { padding: 12px; border: 1px solid alpha(@theme_fg_color,.12); border-radius: 10px; }
+.card-resize-handle { font-size: 12px; background: alpha(#8998ac,.08); }
+.card-resize-handle:hover { background: alpha(#8998ac,.24); }

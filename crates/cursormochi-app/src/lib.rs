@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 pub mod browser;
+pub mod current_cursor;
+pub mod import;
+pub mod trial;
 use cursormochi_core::{Error, Preview, Theme, ThemeName};
 use std::collections::BTreeMap;
 pub trait ThemeRepository {

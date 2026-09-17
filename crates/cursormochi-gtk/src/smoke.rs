@@ -17,7 +17,7 @@ pub struct Smoke {
     elapsed: Duration,
     inspection: Option<(gtk::Expander, gtk::ComboBoxText)>,
 }
-fn select(id: &str, state: &Rc<RefCell<State>>, list: &Rc<RefCell<ThemeList>>) {
+pub(super) fn select(id: &str, state: &Rc<RefCell<State>>, list: &Rc<RefCell<ThemeList>>) {
     let index = state
         .borrow()
         .catalog
@@ -44,6 +44,12 @@ impl Smoke {
             elapsed: Duration::ZERO,
             inspection: None,
         }
+    }
+    pub fn settle_captures(&mut self) {
+        self.at = Instant::now();
+    }
+    pub fn trial_ready(&self) -> bool {
+        self.enabled && self.stage == 9
     }
     fn advance(&mut self) {
         self.stage += 1;
@@ -143,6 +149,10 @@ impl Smoke {
             self.baseline,
             "GUI must not change settings"
         );
+        assert!(
+            state.borrow().controller.undo.is_none(),
+            "preview created an Undo record"
+        );
         assert!(!apply.is_sensitive());
         assert!(!undo.is_sensitive());
         assert!(apply.tooltip_text().is_some());
@@ -168,7 +178,20 @@ impl Smoke {
                 assert!(!p.play.is_visible());
                 assert!(!p.hotspot.is_active());
                 assert!(!p.technical.is_expanded());
-                assert_eq!(apply.label().as_deref(), Some("Already in use"));
+                assert_eq!(apply.label().as_deref(), Some("Apply theme"));
+                assert!(apply.tooltip_text().is_some());
+                let bar = apply.parent().unwrap().downcast::<gtk::Box>().unwrap();
+                assert_eq!(bar.orientation(), gtk::Orientation::Horizontal);
+                assert!(bar.height() <= 64, "routine action bar must stay compact");
+                let mut child = bar.first_child();
+                let mut in_use = false;
+                while let Some(w) = child {
+                    if let Some(l) = w.downcast_ref::<gtk::Label>() {
+                        in_use |= l.text() == "In use";
+                    }
+                    child = w.next_sibling();
+                }
+                assert!(in_use, "applied selection needs a visible In use state");
                 assert!(
                     state
                         .borrow()
@@ -199,7 +222,18 @@ impl Smoke {
                 self.frames = p.frames_shown();
                 self.advance();
             }
-            1 if self.at.elapsed() > Duration::from_millis(350) => {
+            1 if self.at.elapsed() > Duration::from_millis(1200) => {
+                assert_eq!(p.zoom.value_as_int(), 1);
+                assert_eq!(p.background.active(), Some(3));
+                assert!(
+                    p.role_browser.root.is_mapped() && !p.roles.is_visible(),
+                    "role thumbnails must stay visible without a duplicate dropdown"
+                );
+                assert!(
+                    p.image_scroll.height() >= window.height() / 2,
+                    "Inspect must give the preview most of the window height"
+                );
+                super::trial_smoke::capture_main(window, "target/qa/inspect-default.png");
                 assert_eq!(
                     p.frames_shown(),
                     self.frames,
@@ -216,6 +250,14 @@ impl Smoke {
                 p.zoom.set_value(1.);
                 assert!(!opt.is_active());
                 assert_eq!(size.value_as_int(), 24);
+                let row = p.role_browser.rows.borrow()[1].clone();
+                p.role_browser.list.select_row(Some(&row.row));
+                assert_eq!(p.roles.active_id().as_deref(), Some(row.id.as_str()));
+                let hit = row.row.pick(24., 24., gtk::PickFlags::DEFAULT).unwrap();
+                assert!(
+                    hit.is::<gtk::ListBoxRow>(),
+                    "role text must not intercept selection"
+                );
                 select("Mochi-Motion", state, list);
                 self.advance();
             }
@@ -231,7 +273,7 @@ impl Smoke {
                         .as_str(),
                     "Mochi-Motion"
                 );
-                assert_ne!(apply.label().as_deref(), Some("Already in use"));
+                assert_eq!(apply.label().as_deref(), Some("Apply theme"));
                 list.borrow().search.set_text("Motion");
                 p.play.set_active(false);
                 self.elapsed = p.elapsed();
@@ -311,6 +353,39 @@ impl Smoke {
                     "Mochi-Motion"
                 );
                 assert!(p.source_summary().contains("Mochi-Motion"));
+                let rows = p.role_browser.rows.borrow();
+                assert_eq!(
+                    rows.len(),
+                    state
+                        .borrow()
+                        .catalog
+                        .themes
+                        .iter()
+                        .find(|t| t.name.as_str() == "Mochi-Motion")
+                        .unwrap()
+                        .verified_roles
+                        .len()
+                );
+                assert!(rows.iter().any(|r| r.image.paintable().is_some()));
+                assert!(
+                    rows.iter()
+                        .filter(|r| r.image.paintable().is_some())
+                        .count()
+                        <= 16
+                );
+                let image = rows[0].image.clone();
+                let before = image.paintable();
+                drop(rows);
+                p.role_browser.finish(
+                    p.role_browser.generation.get().wrapping_sub(1),
+                    0,
+                    Err(cursormochi_core::Error::Cancelled),
+                );
+                assert_eq!(
+                    image.paintable(),
+                    before,
+                    "old theme thumbnail must not alter new rows"
+                );
                 assert!(
                     list.borrow()
                         .rows
@@ -338,5 +413,27 @@ impl Smoke {
             }
             _ => (),
         }
+    }
+}
+
+/// A snapshot alone cannot detect a write followed by compensation/reset.
+/// Fail on any attempted settings write, including a rejected/no-op write.
+pub struct NoWrites(pub Rc<dyn DesktopSettingsPort>);
+impl DesktopSettingsPort for NoWrites {
+    fn capability(&self) -> cursormochi_app::Capability {
+        self.0.capability()
+    }
+    fn read(&self) -> Result<Snapshot, String> {
+        self.0.read()
+    }
+    fn validate(&self, k: cursormochi_app::Key, v: &cursormochi_app::Value) -> Result<(), String> {
+        self.0.validate(k, v)
+    }
+    fn write(
+        &self,
+        _: cursormochi_app::Key,
+        _: Option<&cursormochi_app::Value>,
+    ) -> Result<(), String> {
+        panic!("GUI preview/trial attempted a settings write")
     }
 }
