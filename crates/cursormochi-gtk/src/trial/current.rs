@@ -19,6 +19,11 @@ pub struct CurrentTest {
     notes: gtk::TextView,
     divider: gtk::Paned,
     info: gtk::Label,
+    details: gtk::Label,
+    file_summary: gtk::Label,
+    vertical_divider: gtk::Paned,
+    category: gtk::DropDown,
+    role_groups: Vec<gtk::Box>,
     notice: gtk::Label,
     summary: gtk::Label,
     evidence: Vec<gtk::Label>,
@@ -35,115 +40,213 @@ pub struct CurrentTest {
 impl CurrentTest {
     pub fn new(parent: &gtk::ApplicationWindow, repo: Repository, fixture: bool) -> Rc<Self> {
         let window = gtk::Window::builder()
-            .title("Current cursor test")
+            .title("System cursor test")
             .transient_for(parent)
             .destroy_with_parent(true)
             .modal(false)
             .resizable(true)
-            .default_width(940)
-            .default_height(850)
+            .default_width(1040)
+            .default_height(820)
             .build();
         let header = gtk::HeaderBar::new();
         header.add_css_class("main-header");
         window.set_titlebar(Some(&header));
-        let root = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        let root = gtk::Box::new(gtk::Orientation::Vertical, 12);
         root.add_css_class("current-test");
-        let info = label("Reading current cursor settings…");
-        root.append(&info);
-        let notice = label(
-            "Named cursors use the running desktop. Hover, click and drag to check the actual pointer.",
-        );
-        notice.add_css_class("dim-label");
+        let heading = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+        let title = label("Test your system cursor");
+        title.add_css_class("theme-title");
+        title.set_hexpand(true);
+        heading.append(&title);
+        let info = label("Reading settings…");
+        info.add_css_class("system-theme-badge");
+        info.set_wrap(false);
+        info.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+        info.set_max_width_chars(32);
+        heading.append(&info);
+        root.append(&heading);
+        let notice = label("Move the pointer through each area, then check what you see.");
+        notice.add_css_class("system-notice");
         root.append(&notice);
+        let details = label("");
+        details.set_selectable(true);
+        let file_summary = label("Checking files…");
+        let diagnostics = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        diagnostics.append(&details);
+        diagnostics.append(&file_summary);
+        diagnostics.append(&label("File evidence cannot identify the compositor’s loaded image. Recheck resets your observations; it does not reload the system cursor cache."));
+        let expander = gtk::Expander::builder()
+            .label("Session & file details")
+            .child(&diagnostics)
+            .build();
+        expander.add_css_class("system-details");
+        root.append(&expander);
         let stack = gtk::Stack::new();
         stack.set_vexpand(true);
+        // Each page scrolls independently at smaller window sizes.
+        stack.set_vhomogeneous(false);
         let switcher = gtk::StackSwitcher::builder()
             .stack(&stack)
             .halign(gtk::Align::Center)
             .build();
         header.set_title_widget(Some(&switcher));
-        let page = gtk::Box::new(gtk::Orientation::Vertical, 16);
-        page.add_css_class("playground-page");
-        let title = label("Test the real window");
-        title.add_css_class("theme-title");
-        page.append(&title);
-        page.append(&label("Drag the actual title bar to move this window. Resize its outer edges and all four corners. These actions use GTK and the window system directly; there are no simulated cards."));
-        page.append(&label("Select and edit text below, then drag the divider between the panes. These are ordinary GTK controls with their own native cursor behavior."));
+
+        let page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        page.append(&section_heading(
+            "01",
+            "Text & dividers",
+            "Type, select text, and drag the separators in both directions.",
+        ));
         let entry = gtk::Entry::builder()
-            .text("Select or edit this text")
+            .text("Try selecting or editing this title")
             .build();
-        page.append(&entry);
         let notes = gtk::TextView::new();
         notes.set_wrap_mode(gtk::WrapMode::WordChar);
-        notes
-            .buffer()
-            .set_text("A native text editor.\nSelect text, type, and move the pointer in and out.");
+        notes.set_left_margin(16);
+        notes.set_right_margin(16);
+        notes.set_top_margin(12);
+        notes.set_bottom_margin(12);
+        notes.buffer().set_text("A small space to try your cursor.\n\nSelect a few words, type something, then move onto the background.\n\nDoes the text cursor switch back when you leave?");
         let editor = gtk::ScrolledWindow::builder()
             .child(&notes)
-            .min_content_height(160)
-            .min_content_width(180)
+            .min_content_height(130)
+            .vexpand(true)
             .build();
-        let normal = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        normal.set_margin_start(20);
-        normal.set_margin_end(20);
-        normal.append(&label("Normal background"));
-        normal.append(&label(
-            "Move here to check that the ordinary pointer returns.",
+        let editor_card = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        editor_card.add_css_class("system-surface");
+        editor_card.set_overflow(gtk::Overflow::Hidden);
+        editor_card.append(&surface_heading("Text input", "Native entry & editor"));
+        entry.set_margin_start(16);
+        entry.set_margin_end(16);
+        editor_card.append(&entry);
+        editor_card.append(&editor);
+        let normal = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        normal.add_css_class("system-background");
+        normal.set_valign(gtk::Align::Fill);
+        normal.append(&surface_heading(
+            "Normal background",
+            "Move here to restore the ordinary pointer",
         ));
+        let icon = gtk::Image::from_icon_name("input-mouse-symbolic");
+        icon.set_pixel_size(36);
+        icon.set_vexpand(true);
+        icon.add_css_class("system-area-icon");
+        normal.append(&icon);
+        let recovery = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        recovery.add_css_class("system-background");
+        recovery.append(&surface_heading(
+            "Try the horizontal divider ↑",
+            "Drag up and down, then release",
+        ));
+        let vertical_divider = gtk::Paned::new(gtk::Orientation::Vertical);
+        vertical_divider.set_wide_handle(true);
+        vertical_divider.set_start_child(Some(&normal));
+        vertical_divider.set_end_child(Some(&recovery));
+        vertical_divider.set_shrink_start_child(false);
+        vertical_divider.set_shrink_end_child(false);
+        vertical_divider.set_position(164);
+        vertical_divider.add_css_class("system-native-pane");
         let divider = gtk::Paned::new(gtk::Orientation::Horizontal);
         divider.set_wide_handle(true);
-        divider.set_start_child(Some(&editor));
-        divider.set_end_child(Some(&normal));
-        divider.set_position(380);
+        divider.set_start_child(Some(&editor_card));
+        divider.set_end_child(Some(&vertical_divider));
+        divider.set_shrink_start_child(false);
+        divider.set_shrink_end_child(false);
+        divider.set_position(450);
+        divider.set_height_request(270);
         divider.set_vexpand(true);
+        divider.add_css_class("system-native-pane");
         page.append(&divider);
-        page.append(&label("Use All roles for explicit system cursor requests such as Busy and Working. A role tile is not a real window resize operation."));
-        stack.add_titled(&page, Some("native"), "Real window");
+        let hint = label(
+            "↔ Drag the vertical divider between the two panels to test horizontal resizing.",
+        );
+        hint.add_css_class("system-caption");
+        page.append(&hint);
 
-        let native = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        native.add_css_class("native-checks");
-        native.append(&label("Resize this real window using all four edges and corners. Keep it unmaximized. Check each box only after observing the pointer and resizing successfully."));
+        page.append(&section_heading("02", "Window edges & corners", "Move this window by its title bar. Resize its actual outer border, then mark each direction below."));
         let checks = gtk::Grid::builder()
-            .column_spacing(12)
+            .column_spacing(8)
             .row_spacing(8)
             .column_homogeneous(true)
             .build();
+        checks.add_css_class("system-border-map");
+        // Spatial checklist only; these controls do not simulate resize handles.
+        let positions = [
+            (0, 1),
+            (2, 1),
+            (1, 0),
+            (1, 2),
+            (0, 0),
+            (2, 0),
+            (0, 2),
+            (2, 2),
+        ];
+        let arrows = ["←", "→", "↑", "↓", "↖", "↗", "↙", "↘"];
         let native_checks: Vec<_> = ROLES[12..20]
             .iter()
             .enumerate()
             .map(|(i, (title, _))| {
-                let check = gtk::CheckButton::with_label(title);
-                checks.attach(&check, (i % 4) as i32, (i / 4) as i32, 1, 1);
+                let check = gtk::CheckButton::with_label(&format!("{}  {title}", arrows[i]));
+                check.set_tooltip_text(Some(
+                    "Mark only after testing the actual outer window border.",
+                ));
+                checks.attach(&check, positions[i].0, positions[i].1, 1, 1);
                 check
             })
             .collect();
-        native.append(&checks);
-        root.append(&native);
+        let center = label("Resize the outer window\nKeep it unmaximized");
+        center.set_xalign(0.5);
+        center.set_justify(gtk::Justification::Center);
+        center.add_css_class("system-border-center");
+        checks.attach(&center, 1, 1, 1, 1);
+        page.append(&checks);
+        stack.add_titled(&scroll_page(&page), Some("native"), "Everyday use");
 
-        let roles = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        roles.set_margin_top(12);
-        roles.append(&label("Hover each role to test its actual system cursor. Mark your observation below it. File evidence uses CursorMochi’s resolver; GTK/compositor aliases, built-in cursors and caches may differ."));
-        let grid = gtk::Grid::builder()
-            .column_spacing(12)
-            .row_spacing(12)
-            .column_homogeneous(true)
-            .build();
+        let roles = gtk::Box::new(gtk::Orientation::Vertical, 16);
+        let active = label("Hover a tile to try its system cursor. Record only what you see.");
+        active.add_css_class("system-active-role");
+        let role_page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        let tools = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        active.set_hexpand(true);
+        tools.append(&active);
+        let category = gtk::DropDown::from_strings(&[
+            "All categories",
+            "Everyday pointers",
+            "Move & drag",
+            "Resize & split",
+            "Precision & tools",
+        ]);
+        category.set_tooltip_text(Some("Show cursor roles by use"));
+        tools.append(&category);
+        role_page.append(&tools);
         let mut evidence = Vec::new();
         let mut results = Vec::new();
         let mut role_targets = Vec::new();
-        for (i, (title, name)) in ROLES.iter().enumerate() {
-            let cell = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        let mut cells = Vec::new();
+        for (title, name) in ROLES {
+            let cell = gtk::Box::new(gtk::Orientation::Vertical, 8);
             cell.add_css_class("cursor-test-role");
             let target = gtk::Button::with_label(title);
-            target.set_height_request(44);
+            target.add_css_class("system-role-target");
+            target.set_height_request(60);
             let cursor = gdk::Cursor::from_name(name, None);
             target.set_cursor(cursor.as_ref());
             target.set_tooltip_text(Some(&format!(
-                "System cursor request: {name}. No external action."
+                "System request: {name}. Hover to inspect; no external action."
             )));
+            let motion = gtk::EventControllerMotion::new();
+            let status = active.clone();
+            motion.connect_enter(move |_, _, _| {
+                status.set_text(&format!("Testing: {title}  ·  {name}"))
+            });
+            let status = active.clone();
+            motion.connect_leave(move |_| {
+                status.set_text("Hover a tile to try its system cursor. Record only what you see.")
+            });
+            target.add_controller(motion);
             cell.append(&target);
             let source = label("Checking file…");
-            source.add_css_class("dim-label");
+            source.add_css_class("system-caption");
             source.set_wrap(false);
             source.set_ellipsize(gtk::pango::EllipsizeMode::End);
             cell.append(&source);
@@ -153,24 +256,95 @@ impl CurrentTest {
             }
             result.set_active(Some(0));
             result.set_tooltip_text(Some("Your visual observation; never set automatically"));
+            // Scrolling the page must not accidentally accept a visual check.
+            let controllers = result.observe_controllers();
+            for i in 0..controllers.n_items() {
+                if let Some(scroll) = controllers
+                    .item(i)
+                    .and_then(|c| c.downcast::<gtk::EventControllerScroll>().ok())
+                {
+                    scroll.set_propagation_phase(gtk::PropagationPhase::None);
+                }
+            }
+            let weak = cell.downgrade();
+            result.connect_changed(move |r| {
+                if let Some(cell) = weak.upgrade() {
+                    for (class, index) in [("observed-correct", 1), ("observed-problem", 2)] {
+                        if r.active() == Some(index) {
+                            cell.add_css_class(class);
+                        } else {
+                            cell.remove_css_class(class);
+                        }
+                    }
+                }
+            });
             cell.append(&result);
-            grid.attach(&cell, (i % 3) as i32, (i / 3) as i32, 1, 1);
+            cells.push(cell);
             evidence.push(source);
             results.push(result);
             role_targets.push(target);
         }
-        roles.append(&grid);
-        let scroll = gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&roles)
-            .build();
-        stack.add_titled(&scroll, Some("roles"), "All roles");
+        let mut role_groups = Vec::new();
+        for (title, subtitle, indices) in [
+            (
+                "Everyday pointers",
+                "Normal, text, links and activity",
+                &[0, 1, 2, 3, 4, 8, 20][..],
+            ),
+            (
+                "Move & drag",
+                "Explicit requests; these tiles do not move files",
+                &[7, 21, 22, 23, 24, 25, 31],
+            ),
+            (
+                "Resize & split",
+                "Named requests; use Everyday use for real window borders",
+                &[5, 6, 9, 11, 29, 30, 12, 13, 14, 15, 16, 17, 18, 19],
+            ),
+            (
+                "Precision & tools",
+                "Selection, menus and zoom",
+                &[10, 26, 27, 28, 32, 33],
+            ),
+        ] {
+            let group = gtk::Box::new(gtk::Orientation::Vertical, 12);
+            group.append(&surface_heading(title, subtitle));
+            let grid = gtk::Grid::builder()
+                .column_spacing(12)
+                .row_spacing(12)
+                .column_homogeneous(true)
+                .build();
+            for (position, &index) in indices.iter().enumerate() {
+                grid.attach(
+                    &cells[index],
+                    (position % 3) as i32,
+                    (position / 3) as i32,
+                    1,
+                    1,
+                );
+            }
+            group.append(&grid);
+            roles.append(&group);
+            role_groups.push(group);
+        }
+        let scroller = scroll_page(&roles);
+        let groups = role_groups.clone();
+        let adjustment = scroller.vadjustment();
+        category.connect_selected_notify(move |choice| {
+            for (index, group) in groups.iter().enumerate() {
+                group.set_visible(choice.selected() == 0 || choice.selected() == index as u32 + 1);
+            }
+            adjustment.set_value(0.0);
+        });
+        role_page.append(&scroller);
+        stack.add_titled(&role_page, Some("roles"), "All roles");
         root.append(&stack);
         let footer = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-        let summary = label("Visual checks: not started");
+        footer.add_css_class("system-test-footer");
+        let summary = label("Your observations · Not started");
         summary.set_hexpand(true);
         footer.append(&summary);
-        let refresh = gtk::Button::with_label("Recheck files");
+        let refresh = gtk::Button::with_label("Reset & recheck");
         refresh.set_tooltip_text(Some("Re-read file evidence and reset observations. Does not reload the desktop’s cursor cache."));
         footer.append(&refresh);
         root.append(&footer);
@@ -182,6 +356,11 @@ impl CurrentTest {
             notes,
             divider,
             info,
+            details,
+            file_summary,
+            vertical_divider,
+            category,
+            role_groups,
             notice,
             summary,
             evidence,
@@ -219,6 +398,7 @@ impl CurrentTest {
     }
     fn invalidate(&self) {
         self.worker.cancel();
+        self.file_summary.set_text("Checking files…");
         self.request.set(0);
         self.context.replace(None);
         for r in &self.results {
@@ -252,6 +432,11 @@ impl CurrentTest {
         if self.context.borrow().as_ref() != Some(&context) {
             self.invalidate();
             self.info.set_text(&format!(
+                "{} · {} px",
+                context.gtk_theme.as_deref().unwrap_or("Theme unavailable"),
+                context.gtk_size
+            ));
+            self.details.set_text(&format!(
                 "Desktop: {} · {} px     GTK: {} · {} px     Window scale: {}×{}",
                 desktop.unwrap_or("Unavailable"),
                 desktop_size,
@@ -266,12 +451,16 @@ impl CurrentTest {
             ));
             let mismatch =
                 context.desktop != context.gtk_theme || context.desktop_size != context.gtk_size;
+            self.notice.remove_css_class("warning-text");
+            if mismatch && !self.fixture {
+                self.notice.add_css_class("warning-text");
+            }
             self.notice.set_text(if self.fixture {
-                "Fixture mode: file checks use samples; named pointers still come from the running desktop. Visual acceptance is pending."
+                "Sample file checks · The pointer still comes from your desktop."
             } else if mismatch {
-                "Desktop and GTK settings differ. This window requests the running system’s cursors; check which theme you actually see. Visual acceptance is pending."
+                "Desktop and GTK settings differ — expand session details and check the theme you see."
             } else {
-                "Test the actual moving pointer, including animations. File checks do not prove desktop behavior. Visual acceptance is pending."
+                "Move through each area and watch the actual pointer. Observations are yours to mark."
             });
             // Normal use audits GTK's reported theme, not the browser selection.
             let name = if self.fixture {
@@ -282,6 +471,9 @@ impl CurrentTest {
             match name.and_then(|name| ThemeName::new(name).ok()) {
                 Some(name) => self.request.set(self.worker.submit(Job::Audit(name))),
                 None => {
+                    self.notice.set_text("The current theme is unavailable. Test native behavior; file evidence cannot be checked.");
+                    self.file_summary
+                        .set_text("Theme unavailable; file audit not run.");
                     for e in &self.evidence {
                         e.set_text("Theme unavailable");
                     }
@@ -299,16 +491,19 @@ impl CurrentTest {
                         let inherited = rows.iter().filter(|r| matches!(r, Ok(e) if e.resolution == cursormochi_core::Resolution::Inherited)).count();
                         let fallback = rows.iter().filter(|r| matches!(r, Ok(e) if e.resolution == cursormochi_core::Resolution::Fallback)).count();
                         let unverified = rows.iter().filter(|r| r.is_err()).count();
-                        self.notice.set_text(&format!("{} File checks: {inherited} inherited · {fallback} fallback · {unverified} unverified. See All roles for reasons.", self.notice.text()));
+                        self.file_summary.set_text(&format!("File evidence: {inherited} inherited · {fallback} fallback · {unverified} unverified. Per-role reasons are in All roles."));
+                        if inherited + fallback + unverified > 0 {
+                            self.notice.set_text(&format!("{} Some roles use inherited, fallback or unverified files; see All roles.", self.notice.text()));
+                        }
                         for (i, row) in rows.into_iter().enumerate() {
                             let name = ROLES[i].1;
                             match row {
                                 Ok(e) => {
                                     self.evidence[i].set_text(&format!(
-                                        "{name} · {:?} · {} frames",
+                                        "{:?} · {} frames",
                                         e.resolution, e.frames
                                     ));
-                                    self.evidence[i].set_tooltip_text(Some(&format!("Exact-name file evidence\n{}\nChain: {}\nDoes not identify the compositor’s loaded cursor.", e.source.display(), e.chain.join(" → "))));
+                                    self.evidence[i].set_tooltip_text(Some(&format!("Exact-name file evidence: {name}\n{}\nChain: {}\nDoes not identify the compositor’s loaded cursor.", e.source.display(), e.chain.join(" → "))));
                                 }
                                 Err(e) => {
                                     self.evidence[i]
@@ -319,6 +514,10 @@ impl CurrentTest {
                         }
                     }
                     Err(e) => {
+                        self.notice.set_text(&format!("File check failed: {e}"));
+                        self.notice.add_css_class("warning-text");
+                        self.file_summary
+                            .set_text("File check failed. No visual result inferred.");
                         for label in &self.evidence {
                             label.set_text(&format!("Check failed: {e}"));
                         }
@@ -337,7 +536,7 @@ impl CurrentTest {
             .filter(|r| r.active() == Some(2))
             .count();
         let native = self.native_checks.iter().filter(|r| r.is_active()).count();
-        self.summary.set_text(&format!("Your checks: {checked}/{} correct · {problems} problems · {native}/8 native edges & corners", ROLES.len()));
+        self.summary.set_text(&format!("Your observations · {checked}/{} roles correct · {problems} problems · {native}/8 window borders", ROLES.len()));
     }
     pub fn audit_ready(&self) -> bool {
         self.evidence.iter().all(|e| e.text() != "Checking file…")
@@ -360,6 +559,33 @@ impl CurrentTest {
                 Some(*name)
             );
         }
+        assert_eq!(self.role_targets.len(), ROLES.len());
+        for target in &self.role_targets {
+            assert!(
+                target.parent().and_then(|p| p.parent()).is_some(),
+                "every role has a visible group"
+            );
+        }
+        for result in &self.results {
+            let controllers = result.observe_controllers();
+            for i in 0..controllers.n_items() {
+                if let Some(scroll) = controllers
+                    .item(i)
+                    .and_then(|c| c.downcast::<gtk::EventControllerScroll>().ok())
+                {
+                    assert_eq!(
+                        scroll.propagation_phase(),
+                        gtk::PropagationPhase::None,
+                        "wheel browsing must not accept observations"
+                    );
+                }
+            }
+        }
+        assert_eq!(
+            self.vertical_divider.orientation(),
+            gtk::Orientation::Vertical
+        );
+        assert!(self.vertical_divider.cursor().is_none());
         // Check the native control's actual request against import output names.
         // Window-edge aliases alone do not cover GTK pane dividers.
         for (orientation, role, expected) in [
@@ -406,6 +632,36 @@ impl CurrentTest {
     }
 }
 
+fn scroll_page(child: &impl IsA<gtk::Widget>) -> gtk::ScrolledWindow {
+    gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .child(child)
+        .vexpand(true)
+        .build()
+}
+
+fn surface_heading(title: &str, subtitle: &str) -> gtk::Box {
+    let heading = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    heading.add_css_class("system-surface-heading");
+    let title = label(title);
+    title.add_css_class("system-section-title");
+    heading.append(&title);
+    let subtitle = label(subtitle);
+    subtitle.add_css_class("system-caption");
+    heading.append(&subtitle);
+    heading
+}
+
+fn section_heading(number: &str, title: &str, subtitle: &str) -> gtk::Box {
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    let number = label(number);
+    number.add_css_class("system-step");
+    number.set_valign(gtk::Align::Start);
+    row.append(&number);
+    row.append(&surface_heading(title, subtitle));
+    row
+}
+
 /// Programmatic checks only. Does not move the physical pointer or auto-pass
 /// the window's manual acceptance checklist.
 #[derive(Default)]
@@ -415,7 +671,7 @@ pub struct Smoke {
 }
 impl Smoke {
     pub fn done(&self) -> bool {
-        self.stage == 4
+        self.stage == 6
     }
     pub fn tick(&mut self, t: &CurrentTest, button: &gtk::Button) {
         let elapsed = self.at.map(|at| at.elapsed()).unwrap_or_default();
@@ -438,6 +694,22 @@ impl Smoke {
             }
             2 if elapsed > Duration::from_millis(250) => {
                 crate::trial_smoke::capture_window(&t.window, "target/qa/current-cursor-roles.png");
+                for selected in 1..=4 {
+                    t.category.set_selected(selected);
+                    for (index, group) in t.role_groups.iter().enumerate() {
+                        assert_eq!(group.is_visible(), index as u32 + 1 == selected);
+                    }
+                }
+                t.category.set_selected(3);
+                self.advance();
+            }
+            3 if elapsed > Duration::from_millis(250) => {
+                crate::trial_smoke::capture_window(
+                    &t.window,
+                    "target/qa/current-cursor-resize.png",
+                );
+                t.category.set_selected(0);
+                assert!(t.role_groups.iter().all(|g| g.is_visible()));
                 t.results[0].set_active(Some(1));
                 t.native_checks[0].set_active(true);
                 let context = t.context.borrow().clone().expect("current context");
@@ -457,15 +729,32 @@ impl Smoke {
                 t.stack.set_visible_child_name("native");
                 self.advance();
             }
-            3 if t.audit_ready() && elapsed > Duration::from_millis(200) => {
+            4 if t.audit_ready() && elapsed > Duration::from_millis(200) => {
                 t.smoke_check();
                 let position = t.divider.position();
                 t.divider.set_position(position + 10);
                 assert_eq!(t.divider.position(), position + 10);
                 t.divider.set_position(position);
+                let position = t.vertical_divider.position();
+                t.vertical_divider.set_position(position + 10);
+                assert_eq!(t.vertical_divider.position(), position + 10);
+                t.vertical_divider.set_position(position);
+                t.window.set_default_size(780, 640);
+                self.advance();
+            }
+            5 if elapsed > Duration::from_millis(350) => {
+                crate::trial_smoke::capture_window(
+                    &t.window,
+                    "target/qa/current-cursor-compact.png",
+                );
+                assert!(
+                    t.window.width() <= 800,
+                    "compact layout should fit without widening the window"
+                );
+                t.smoke_check();
                 t.window.close();
                 println!(
-                    "CURRENT_CURSOR_SMOKE PASS: unmodified native entry/editor/divider, native col/row requests covered by import aliases, no texture-trial cursor guard, 34 named requests, eight independent native checks, no automatic visual pass, singleton/reopen, theme invalidation, close cleanup; no settings writes. Actual pointer, native resizing, animation and scaling remain manual."
+                    "CURRENT_CURSOR_SMOKE PASS: grouped roles, scroll-safe observations, compact layout, both native pane orientations; unmodified native entry/editor/divider, native col/row requests covered by import aliases, no texture-trial cursor guard, 34 named requests, eight independent native checks, no automatic visual pass, singleton/reopen, theme invalidation, close cleanup; no settings writes. Actual pointer, native resizing, animation and scaling remain manual."
                 );
                 self.advance();
             }

@@ -100,3 +100,28 @@ Final command: `./scripts/check.sh --gui` PASS (`target/qa/system-coverage-check
 ## Approved installed-theme repair — 2026-09-17
 
 The user subsequently authorized the pending two-file Miku repair. Both pane names have now been added without overwriting any file; all 56 existing files and the desktop theme/size were unchanged. A fresh independent libXcursor audit verified 23 of the 34 exact-name Miku files and identified the remaining 11 missing names. See [the complete audit](MIKU_SYSTEM_AUDIT.md) for the per-role results, original ZIP checks and real-pointer acceptance boundary. Earlier statements that this repair is awaiting approval are historical and superseded by this record.
+
+
+## System-test interface refresh — 2026-09-19
+
+The reusable window is now titled **System cursor test**. Open it from the existing **Test current cursor** menu item. The **Everyday use** page replaces the former Real window layout: a larger native entry/editor, a normal-background area, and clearly visible horizontal and vertical GtkPaned separators. Both separators use GTK's own cursor and drag handling. The eight real-border observations are arranged spatially around a central reminder; they are checkboxes, not simulated resize handles. Actual border tests still require dragging the outer window edges and corners.
+
+**All roles** retains all 34 exact-name targets, including separate Busy and Working in background targets. Four categories make everyday, move/drag, resize/split and precision roles easier to find. Category filtering preserves observations and provides an explicit All categories entry. The active hover label identifies the current named request. Observation menus show Not checked, Looks correct or Problem; scrolling the page cannot change these values. Only explicit observation changes affect card borders. No image preview or selected-theme cursor has been substituted for a system cursor.
+
+The theme/size badge reports GTK's current values. Session metadata and aggregate file evidence are expandable; setting mismatches, audit failures and inherited/fallback/unverified-file notices stay visible. Per-role source paths and chains remain in tooltips. The main surfaces use the native light/dark palette, with larger headings and restrained borders. Both pages scroll at smaller window sizes, and the observation summary remains in the footer. Reset & recheck clears observations and re-reads files without claiming to reload any desktop cache.
+
+### Automated checks
+
+PASS: `./scripts/check.sh`, exit 0; log `target/qa/system-ui-final-check.log`. Rust 1.98.0, GTK 4.22.4. This runs formatting, core/app tests, workspace clippy with warnings denied, all 79 workspace tests, and the release build. The change stays within the GTK layer; no new dependency, settings writer, installation behavior, or architecture was introduced.
+
+### Isolated GUI
+
+PASS: final `./scripts/check-gui.sh`, exit 0; log `target/qa/system-ui-gui.log`. Adwaita, Adwaita dark and HighContrast completed on the local Wayland display, reported scale 1, using private D-Bus sessions, fixture files and the existing rejecting settings writer. Checks cover all role targets attached to groups, four category filters and return to All categories, scroll-safe observation controls, native entry/editor behavior, both native pane orientations, theme/request invalidation, singleton/reopen/close, and the 780 × 640 compact layout. Existing fixture checks continue to assert unchanged settings and no Undo record. Screenshot inspection covered default, filtered, compact, light, dark and high-contrast layouts; it does not establish pointer rendering.
+
+An earlier run passed the light style, then failed in the existing import smoke test at stage 8 while waiting to capture its window, before the current-system test opened in the dark run. That failure is retained in `target/qa/system-ui-gui-first.log`. No import assertion or timeout was weakened; the final complete run passed. The intermittent import capture timeout is not claimed fixed by this UI change. Final application logs contain no GTK/GDK warning or critical; private portal service/shutdown warnings remain separate.
+
+Layout captures: [Everyday use](screenshots/current-cursor-playground.png), [All roles](screenshots/current-cursor-roles.png), [Resize category](screenshots/current-cursor-resize.png), [Dark](screenshots/current-cursor-dark.png), [High contrast](screenshots/current-cursor-highcontrast.png), [Compact](screenshots/current-cursor-compact.png).
+
+### Real GNOME and unverified environments
+
+NOT RUN for this revision: actual moving-pointer shapes/hotspots/animation, real outer-border resizing, native input and both dividers under physical pointer interaction, fractional/mixed-monitor scaling, and recovery after closing. Keep the real GNOME checklist above pending until explicitly observed. X11/XWayland was not rerun for this layout revision. Automatic checks did not Apply/Undo host settings, modify installed themes, or certify QQ/Clash behavior. No push or release was performed.

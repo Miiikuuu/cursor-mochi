@@ -121,12 +121,34 @@ headerbar.main-header { background: #fff; color: #2d3239; border-bottom-color: #
 .role-row { padding: 6px 4px; }
 .role-row .dim-label { font-size: 12px; }
 
-/* Current desktop cursor checks reuse the existing playground. */
-.current-test { padding: 14px 20px; }
-.current-test .playground-page { padding: 4px 0; }
-.current-test .theme-title { font-size: 20px; }
-.cursor-test-role { padding: 12px; border: 1px solid alpha(@theme_fg_color,.12); border-radius: 10px; }
-.cursor-test-role .dim-label { font-size: 12px; }
-.native-checks { padding: 12px; border: 1px solid alpha(@theme_fg_color,.12); border-radius: 10px; }
+/* System tests keep native input and separator cursors untouched. */
+.current-test { padding: 20px 24px 12px; }
+.current-test .theme-title { font-size: 23px; font-weight: 600; }
+.system-theme-badge { padding: 7px 12px; background: alpha(@theme_fg_color,.065); border-radius: 20px; font-size: 13px; font-weight: 500; }
+.system-notice { font-size: 13px; }
+.system-details { font-size: 12px; color: alpha(@theme_fg_color,.78); }
+.system-details > box { padding: 10px 0; }
+.system-section-title { font-size: 15px; font-weight: 600; }
+.system-caption { font-size: 12px; color: alpha(@theme_fg_color,.72); }
+.system-step { padding: 7px 9px; border-radius: 7px; background: alpha(@theme_fg_color,.07); font-size: 12px; font-weight: 600; }
+.system-surface, .system-background { background: @theme_base_color; border: 1px solid alpha(@theme_fg_color,.1); border-radius: 10px; }
+.system-surface > .system-surface-heading, .system-background > .system-surface-heading { padding: 14px 16px 4px; }
+.system-surface textview, .system-surface textview text { background: @theme_base_color; color: @theme_text_color; }
+.system-background { padding-bottom: 12px; }
+.system-area-icon { color: alpha(@theme_fg_color,.45); margin: 8px; }
+.system-native-pane > separator { background: alpha(@theme_fg_color,.13); border-radius: 6px; margin: 5px; min-width: 8px; min-height: 8px; }
+.system-native-pane > separator:hover { background: alpha(@theme_fg_color,.3); }
+.system-border-map { padding: 12px; background: @theme_base_color; border: 1px solid alpha(@theme_fg_color,.1); border-radius: 10px; }
+.system-border-map checkbutton { padding: 6px 10px; border-radius: 6px; }
+.system-border-map checkbutton:hover { background: alpha(@theme_fg_color,.05); }
+.system-border-center { padding: 8px; font-size: 12px; color: alpha(@theme_fg_color,.72); background: alpha(@theme_fg_color,.035); border-radius: 6px; }
+.system-active-role { padding: 10px 12px; background: alpha(@theme_fg_color,.05); border-radius: 6px; font-size: 13px; }
+.cursor-test-role { padding: 10px; background: @theme_base_color; border: 1px solid alpha(@theme_fg_color,.13); border-radius: 10px; }
+.cursor-test-role button.system-role-target { background: alpha(@theme_fg_color,.035); color: @theme_fg_color; border: none; box-shadow: none; border-radius: 6px; font-weight: 600; }
+.cursor-test-role button.system-role-target:hover { background: alpha(@theme_fg_color,.10); }
+.cursor-test-role.observed-correct { border-color: alpha(@theme_fg_color,.55); }
+.cursor-test-role.observed-problem { border: 2px solid @error_color; padding: 9px; }
+.cursor-test-role combobox { font-size: 12px; }
+.system-test-footer { border-top: 1px solid alpha(@theme_fg_color,.1); padding-top: 12px; font-size: 12px; }
 .card-resize-handle { font-size: 12px; background: alpha(#8998ac,.08); }
 .card-resize-handle:hover { background: alpha(#8998ac,.24); }
