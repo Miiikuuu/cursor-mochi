@@ -7,6 +7,7 @@ mod smoke;
 mod theme_list;
 mod thumbnail;
 mod trial;
+mod trial_drag_smoke;
 mod trial_smoke;
 mod ui;
 mod worker;

@@ -536,6 +536,24 @@ pub(super) fn position(board: &gtk::Fixed, card: &gtk::Box) -> (f64, f64) {
         .unwrap_or((0., 0.));
     (x as f64, y as f64)
 }
+#[derive(Clone, Copy)]
+struct DragStart {
+    geometry: (f64, f64),
+    local: (f64, f64),
+    canvas: (f64, f64),
+}
+
+fn canvas_point(g: &gtk::GestureDrag, board: &gtk::Fixed, x: f64, y: f64) -> Option<(f64, f64)> {
+    let p = g
+        .widget()?
+        .compute_point(board, &gtk::graphene::Point::new(x as f32, y as f32))?;
+    Some((p.x() as f64, p.y() as f64))
+}
+
+fn owns_drag(live: &Live, g: &gtk::GestureDrag) -> bool {
+    live.drag.as_ref().is_some_and(|(owner, _)| owner == g)
+}
+
 fn drag(
     w: &impl IsA<gtk::Widget>,
     board: &gtk::Fixed,
@@ -546,31 +564,49 @@ fn drag(
 ) -> gtk::GestureDrag {
     let gesture = gtk::GestureDrag::new();
     gesture.set_button(1);
-    let start = Rc::new(Cell::new((0., 0.)));
+    let start = Rc::new(Cell::new(None::<DragStart>));
     let (b, c, s, l) = (
         board.downgrade(),
         card.downgrade(),
         start.clone(),
         Rc::downgrade(live),
     );
-    gesture.connect_drag_begin(move |g, _, _| {
+    gesture.connect_drag_begin(move |g, x, y| {
         // A resize child owns its gesture; the card body must not also move.
         g.set_state(gtk::EventSequenceState::Claimed);
         let (Some(b), Some(c)) = (b.upgrade(), c.upgrade()) else {
             return;
         };
-        s.set(if role == 7 {
-            position(&b, &c)
-        } else {
-            (c.width() as f64, c.height() as f64)
-        });
+        let Some(canvas) = canvas_point(g, &b, x, y) else {
+            s.set(None);
+            return;
+        };
+        let Some(bounds) = c.compute_bounds(&c) else {
+            return;
+        };
+        s.set(Some(DragStart {
+            geometry: if role == 7 {
+                position(&b, &c)
+            } else {
+                (bounds.width() as f64, bounds.height() as f64)
+            },
+            local: (x, y),
+            canvas,
+        }));
         if let Some(l) = l.upgrade() {
             l.borrow_mut().drag = Some((g.clone(), role));
         }
     });
     let (b, c, s) = (board.downgrade(), card.downgrade(), start.clone());
     let drag_snap = snap.clone();
-    gesture.connect_drag_update(move |_, x, y| {
+    let l = Rc::downgrade(live);
+    gesture.connect_drag_update(move |g, x, y| {
+        let Some(l) = l.upgrade() else {
+            return;
+        };
+        if !owns_drag(&l.borrow(), g) {
+            return;
+        }
         let snap = |v: f64| {
             if drag_snap.is_active() {
                 (v / 12.).round() * 12.
@@ -581,38 +617,66 @@ fn drag(
         let (Some(b), Some(c)) = (b.upgrade(), c.upgrade()) else {
             return;
         };
-        let (a, d) = s.get();
+        let Some(start) = s.get() else {
+            return;
+        };
+        // Gesture offsets are in the controller widget's coordinates. Both a
+        // moved card and a resized edge change that coordinate system. Convert
+        // the current point through the allocated widget into the stable canvas
+        // before comparing it with the original press; otherwise updates feed
+        // the card's own movement back into the next offset and oscillate.
+        let Some(point) = canvas_point(g, &b, start.local.0 + x, start.local.1 + y) else {
+            return;
+        };
+        let (x, y) = (point.0 - start.canvas.0, point.1 - start.canvas.1);
+        let (a, d) = start.geometry;
         if role == 7 {
+            let Some(bounds) = c.compute_bounds(&c) else {
+                return;
+            };
             b.move_(
                 &c,
-                snap(a + x).clamp(0., (b.width() - c.width()).max(0) as f64),
-                snap(d + y).clamp(0., (b.height() - c.height()).max(0) as f64),
+                snap(a + x).clamp(0., (b.width() as f64 - bounds.width() as f64).max(0.)),
+                snap(d + y).clamp(0., (b.height() as f64 - bounds.height() as f64).max(0.)),
             );
         } else {
             let (cx, cy) = position(&b, &c);
             let width = if role == 5 || role == 9 {
-                snap(a + x).clamp(120., (b.width() as f64 - cx).max(120.)) as i32
+                snap(a + x)
+                    .clamp(120., (b.width() as f64 - cx).max(120.))
+                    .round() as i32
             } else {
-                c.width()
+                a.round() as i32
             };
             let height = if role == 6 || role == 9 {
-                snap(d + y).clamp(80., (b.height() as f64 - cy).max(80.)) as i32
+                snap(d + y)
+                    .clamp(80., (b.height() as f64 - cy).max(80.))
+                    .round() as i32
             } else {
-                c.height()
+                d.round() as i32
             };
             c.set_size_request(width, height);
         }
     });
     let l = Rc::downgrade(live);
-    gesture.connect_drag_end(move |_, _, _| {
+    let s = start.clone();
+    gesture.connect_drag_end(move |g, _, _| {
+        s.set(None);
         if let Some(l) = l.upgrade() {
-            l.borrow_mut().drag = None;
+            let mut live = l.borrow_mut();
+            if owns_drag(&live, g) {
+                live.drag = None;
+            }
         }
     });
     let l = Rc::downgrade(live);
-    gesture.connect_cancel(move |_, _| {
+    gesture.connect_cancel(move |g, _| {
+        start.set(None);
         if let Some(l) = l.upgrade() {
-            l.borrow_mut().drag = None;
+            let mut live = l.borrow_mut();
+            if owns_drag(&live, g) {
+                live.drag = None;
+            }
         }
     });
     let keys = gtk::EventControllerKey::new();
@@ -628,23 +692,26 @@ fn drag(
             _ => return glib::Propagation::Proceed,
         };
         if let (Some(b), Some(c)) = (b.upgrade(), c.upgrade()) {
+            let Some(bounds) = c.compute_bounds(&c) else {
+                return glib::Propagation::Proceed;
+            };
             let step = if step_snap.is_active() { 12. } else { 4. };
             let (x, y) = position(&b, &c);
             if role == 7 {
                 b.move_(
                     &c,
-                    (x + dx * step).clamp(0., (b.width() - c.width()).max(0) as f64),
-                    (y + dy * step).clamp(0., (b.height() - c.height()).max(0) as f64),
+                    (x + dx * step).clamp(0., (b.width() as f64 - bounds.width() as f64).max(0.)),
+                    (y + dy * step).clamp(0., (b.height() as f64 - bounds.height() as f64).max(0.)),
                 );
             } else {
-                let w = (c.width() as f64
+                let w = (bounds.width() as f64
                     + if role == 5 || role == 9 {
                         dx * step
                     } else {
                         0.
                     })
                 .clamp(120., (b.width() as f64 - x).max(120.));
-                let h = (c.height() as f64
+                let h = (bounds.height() as f64
                     + if role == 6 || role == 9 {
                         dy * step
                     } else {

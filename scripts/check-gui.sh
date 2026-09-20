@@ -16,7 +16,7 @@ for style in Adwaita Adwaita:dark HighContrast; do
         cat "$log"
         exit 1
     fi
-    rg 'GUI_SMOKE PASS|TRIAL_SMOKE PASS|FRONTEND_SMOKE PASS|IMPORT_SMOKE PASS|CURRENT_CURSOR_SMOKE PASS|GUI_CAPTURE' "$log"
+    rg 'CANVAS_DRAG_SMOKE PASS|GUI_SMOKE PASS|TRIAL_SMOKE PASS|FRONTEND_SMOKE PASS|IMPORT_SMOKE PASS|CURRENT_CURSOR_SMOKE PASS|GUI_CAPTURE' "$log"
     cp target/qa/frontend-playground.png "target/qa/frontend-$variant.png"
     cp target/qa/inspect-default.png "target/qa/inspect-$variant.png"
     cp target/qa/frontend-header.png "target/qa/frontend-$variant-header.png"

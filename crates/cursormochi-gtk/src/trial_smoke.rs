@@ -11,6 +11,7 @@ pub struct TrialSmoke {
     stage: u8,
     at: Option<Instant>,
     frames: usize,
+    drag: super::trial_drag_smoke::DragSmoke,
 }
 impl TrialSmoke {
     pub fn done(&self) -> bool {
@@ -63,6 +64,9 @@ impl TrialSmoke {
                 self.advance();
             }
             2 if elapsed > Duration::from_millis(350) => {
+                if !self.drag.tick(t) {
+                    return;
+                }
                 capture(t);
                 assert_eq!(t.frames_shown(), self.frames, "static cursor re-rendered");
                 t.link.emit_clicked();
